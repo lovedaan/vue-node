@@ -1,0 +1,24 @@
+{
+  "name": "vuenode",
+  "description": "\"vue+node\"",
+  "main": "app.js",
+  "authors": [
+    "赖海涛 <897955713@qq.com>"
+  ],
+  "license": "ISC",
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "public/lib",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "vue": "1",
+    "bootstrap": "^3.3.7",
+    "vue-resource": "^1.0.3",
+    "moment": "^2.15.1"
+  }
+}

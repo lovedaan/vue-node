@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <link rel="stylesheet" type="text/css" href="lib/bootstrap/dist/css/bootstrap.min.css" />
+        <script type="text/javascript" src="lib/jquery/dist/jquery.min.js"></script>
+        <script type="text/javascript" src="lib/bootstrap/dist/js/bootstrap.min.js"></script>
+        <script type="text/javascript" src="lib/vue/dist/vue.min.js"></script>
+        <script type="text/javascript" src="lib/moment/min/moment.min.js"></script>
+        <script type="text/javascript" src="lib/vue-resource/dist/vue-resource-0.7.js"></script>
+        <style type="text/css">
+            ul{
+                list-style: none;
+                padding: 0;
+            }
+            .msgList{
+                width: 100%;
+            }
+            .msgList ul li{
+                border: 1px solid #000;
+                border-radius: 10px;
+                margin-top: 20px;
+                padding: 20px;
+            }
+            .msgList ul li p{
+                padding: 10px 0;
+            }
+            .msgList ul li .bd{
+                overflow: hidden;
+            }
+
+            .msgList ul li .bd .right a{
+                padding-left: 20px;
+            }
+
+            .tip p{
+                border: 1px solid #000;
+                border-radius: 10px;
+                padding:20px;
+                text-align: center;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container" id="box">
+            <h1>留言本</h1>
+            <div class="form-group">
+                <textarea name="" class="form-control" cols="60" rows="5" id="msgValue" v-model="msg"></textarea>
+            </div>
+            <div class="form-group">
+                <input type="button" class="btn btn-primary btn-lg btn-block" value="提交" @click="subMsg()" />
+            </div>
+            <hr />
+            <nav class="text-right" v-show="pages.length != 0">
+              <ul class="pagination">
+                <li :class="{'disabled ' : nowPage == 0 }" @click="getMsg(nowPage)"><a href="javascript:;">&laquo;</a></li>
+                <li v-for="item in pages" :class="{'active' : $index == nowPage}" @click="getMsg(item)"><a href="javascript:;">{{item}}</a></li>
+                <li :class="{'disabled ' : nowPage == pages.length -1 }" @click="getMsg(nowPage+2)"><a href="javascript:;">&raquo;</a></li>
+              </ul>
+            </nav>
+            <div class="msgList">
+                <div class="tip" v-show="myData.length == 0">
+                    <p>暂无数据.....</p>
+                </div>
+                <ul>
+                    <li v-for="item in myData">
+                        <p>内容：{{item.text}}</p>
+                        <div class="bd">
+                            <span class="pull-left">
+                               时间： {{item.date | timestampFormat}}
+                            </span>
+                            <div class="pull-right">
+                                <button class="btn btn-primary" data-toggle="modal" data-target="#modal" data-id="{{item.id}}" @click="nowIndex = $index,_id = item.id">删除</button>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <!-- 提示模态框 -->
+            <div class="modal fade" role="dialog" id="modal" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button class="close" data-dismiss="modal">
+                                <span>&times;</span>
+                            </button>
+                            <h4>你确定删除这条信息？</h4>
+                        </div>
+                        <div class="modal-body text-right">
+                            <button class="btn btn-primary" data-dismiss="modal">取消</button>
+                            <button class="btn btn-danger" data-dismiss="modal" data="{{nowIndex}}" @click="removeMsg(nowIndex,_id)">确定</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </body>
+</html>
+<script type="text/javascript">
+    //自定义日期过滤器
+    function times(timestamp, format) {
+        var result;
+        timestamp = parseInt(timestamp);
+        if (!timestamp){
+            result = '-';
+        } else if (format) {
+            result = moment(timestamp).format(format);
+        } else {
+            result = moment(timestamp).format('YYYY-MM-DD HH:mm:ss');
+        }
+        return result;
+    }
+    Vue.filter('timestampFormat', times)
+     var c = new Vue({
+        el : '#box',
+        data: {
+            msg : '',
+            myData : [],
+            nowIndex : -100,
+            pages : [],
+            nowPage : 0,
+            _id : ''
+        },
+        methods : {
+            subMsg : function () {
+                if(this.msg == ''){
+                    alert('请输入内容，再提交！');
+                    return;
+                }
+                var selt = this;
+
+                //把留言写入数据库
+                this.$http.get('/doSubmit',{
+                    id : Math.random().toString().replace('.',''),
+                    text : this.msg,
+                    date : Date.parse(new Date())
+                }).then(function (res) {
+                    selt.myData.unshift({
+                        id : Math.random().toString().replace('.',''),
+                        text : selt.msg,
+                        date : Date.parse(new Date())
+                    });
+                    if(selt.myData.length > 5){
+                        selt.myData.pop();
+                    }
+                    selt.msg = '';
+                },function (res) {
+                    alert(res.data);
+                });
+            },
+            removeMsg : function (n,id) {
+                var selt = this;
+                this.$http.get('/removeMsg',{
+                    id : id
+                }).then(function (res) {
+                    //alert(res.data);
+                    selt.myData.splice(n,1);
+                    this.$http.get('/getMsg',{page : 1}).then(function (res) {
+                        console.log(JSON.stringify(res.data));
+                        selt.myData = res.data;
+                    },function (res) {
+                        alert(res.data);
+                    });
+                },function (res) {
+                    alert(res.data);
+                });
+
+            },
+            getMsg : function (page) {
+                this.nowPage = page - 1;
+                var selt = this;
+                this.$http.get('/getMsg',{page : page}).then(function (res) {
+                    console.log(JSON.stringify(res.data));
+                    selt.myData = res.data;
+                },function (res) {
+                    alert(res.data);
+                });
+            }
+        },
+        ready : function () {
+            var selt = this;
+
+            this.$http.get('/sumCount').then(function (res) {
+                    console.log(parseInt(res.data));
+                    var count = parseInt(res.data);
+
+                    for(var i =0; i<count;i++){
+                        selt.pages.push(i+1);
+                    }
+                },function (res) {
+                    alert(res.data);
+                });
+
+            this.$http.get('/getMsg',{page : 1}).then(function (res) {
+                console.log(JSON.stringify(res.data));
+                selt.myData = res.data;
+            },function (res) {
+                alert(res.data);
+            });
+        }
+     });
+</script>
